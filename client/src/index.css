@@ -247,6 +247,53 @@ body {
   border: 1px solid var(--color-border);
 }
 
+/* ---------- Admin upload ---------- */
+.admin-sync-results {
+  margin-top: 28px;
+  border-top: 1px solid var(--color-border);
+  padding-top: 20px;
+}
+
+.sync-block {
+  margin-bottom: 20px;
+}
+
+.sync-block h2 {
+  font-size: 0.95rem;
+  margin: 0 0 10px;
+  color: var(--color-text);
+}
+
+.sync-block ul {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 0.88rem;
+  color: var(--color-secondary);
+}
+
+.sync-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.sync-table th,
+.sync-table td {
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  text-align: left;
+}
+
+.sync-table th {
+  background: #f1f5f9;
+}
+
+.sync-hint {
+  margin: 10px 0 0;
+  font-size: 0.8rem;
+  color: var(--color-secondary);
+}
+
 .alert-banner {
   border-radius: 8px;
   padding: 12px 14px;

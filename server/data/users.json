@@ -1,32 +1,48 @@
 [
   {
+    "username": "admin",
+    "name": "Administrador",
+    "role": "admin",
+    "passwordHash": "$2a$10$f8OqmGU8VvOQAqTrREC3OODTScsPq.SfM1rVP8aqhiUNci9lQksB2"
+  },
+  {
     "username": "chris",
     "name": "Chris",
     "sheetName": "Chris TS-TO-AMS",
-    "passwordHash": "$2a$10$qmNbRqhwEYsMoV9xMIW0neWp1z8iFi23iJvoZPEryTftio3N8XcpG"
+    "role": "ops_leader",
+    "active": true,
+    "passwordHash": "$2a$10$i4UnUtlbQMXe3OdkQBc2ROwOU.BFzHpQPxGdqxlYwhvqtHPSe0yPW"
   },
   {
     "username": "cristian",
     "name": "Cristian",
     "sheetName": "Cristian TS EMEA",
-    "passwordHash": "$2a$10$ocNd.lK2uHiPUU3DyCstaecVWnusBVr2ti.BGRnOkLYw0Ft2U5SVy"
+    "role": "ops_leader",
+    "active": true,
+    "passwordHash": "$2a$10$/u4I8qbS4QcrxmQA7lm3QeRXgPmWv7RawNgqMSNbKAjn3R/Dg1Ux6"
   },
   {
     "username": "adriano",
     "name": "Adriano",
     "sheetName": "Adriano Crea-EMEA",
-    "passwordHash": "$2a$10$K/3ttEusQK/NObgdyMbvNeG2qlDKGpmQutI6Cjtod0qmDW65cWEV."
+    "role": "ops_leader",
+    "active": true,
+    "passwordHash": "$2a$10$LctuxkLLeQEANbej0nDveeAT2wjw2oT.2T0j6E2ZbVL.qEph8uS06"
   },
   {
     "username": "nicolas",
     "name": "Nicolas",
     "sheetName": "Nicolas TO EMA",
-    "passwordHash": "$2a$10$.5sSejCW.HljpPzVEoOG/OtCXYw.Rzkbnh.ydHtZU9cHpk4BSb9S6"
+    "role": "ops_leader",
+    "active": true,
+    "passwordHash": "$2a$10$xAViJpdFzsyZZmQmPRZ5oOynmINAydtiYCmGni3I.ZkdzTGl5mN06"
   },
   {
     "username": "derick",
     "name": "Derick",
     "sheetName": "Derick AX EMEA",
-    "passwordHash": "$2a$10$6733ZexjTUoWACQMRJxQLuRR4qFRTDhkvk5C8v1nejFMA0YjUTvOa"
+    "role": "ops_leader",
+    "active": true,
+    "passwordHash": "$2a$10$yBrkJfml/zISVQOkteuE/.H62uGgR88/UBgpczIB3W2aZR2kuRjS."
   }
 ]

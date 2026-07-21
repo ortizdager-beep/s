@@ -31,6 +31,42 @@ function computeCheckDistribution(rowValues) {
   return allGroupsOk ? "OK" : "Not 100%";
 }
 
+const REQUIRED_HEADERS = new Set(SOURCE_HEADER_ORDER);
+
+/**
+ * Valida y reemplaza data.xlsx con un archivo recién subido por el admin.
+ * Cada hoja del archivo debe tener, como mínimo, todas las columnas de
+ * SOURCE_HEADER_ORDER (datos maestros + columnas editables + check
+ * distribution sum). Si alguna hoja no cumple, no se guarda nada y se
+ * lanza un error describiendo qué falta.
+ * Devuelve los nombres de las hojas (= ops leaders) del archivo válido.
+ */
+function replaceDataWorkbook(buffer) {
+  let wb;
+  try {
+    wb = XLSX.read(buffer, { type: "buffer" });
+  } catch (err) {
+    throw new Error("El archivo no es un Excel válido.");
+  }
+
+  if (wb.SheetNames.length === 0) {
+    throw new Error("El archivo no tiene hojas.");
+  }
+
+  wb.SheetNames.forEach((sheetName) => {
+    const sheet = wb.Sheets[sheetName];
+    const [headerRow = []] = XLSX.utils.sheet_to_json(sheet, { header: 1, range: 0, defval: "" });
+    const headerSet = new Set(headerRow.map((h) => String(h).trim()));
+    const missing = [...REQUIRED_HEADERS].filter((h) => !headerSet.has(h));
+    if (missing.length > 0) {
+      throw new Error(`La hoja "${sheetName}" no tiene las columnas: ${missing.join(", ")}.`);
+    }
+  });
+
+  fs.writeFileSync(DATA_XLSX_PATH, buffer);
+  return wb.SheetNames;
+}
+
 function readSheetRows(sheetName) {
   if (!fs.existsSync(DATA_XLSX_PATH)) {
     throw new Error("No se encontró data.xlsx en server/data/.");
@@ -150,6 +186,7 @@ module.exports = {
   LABEL_TO_NAME,
   NAME_TO_LABEL,
   computeCheckDistribution,
+  replaceDataWorkbook,
   getEmployeesForUser,
   writeSubmissionWorkbook,
   updatePreviousValues,

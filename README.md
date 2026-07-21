@@ -1,12 +1,17 @@
 # Portal de Ops Leaders — HC List / Cost to Serve
 
-Prototipo fullstack funcional: cada ops leader inicia sesión y ve una **tabla
-editable con la lista de empleados a su cargo** (una hoja del Excel de HC
-List / Cost to Serve por ops leader). Las columnas de datos maestros (A–I)
-vienen ya cargadas y son de solo lectura; desde la columna J en adelante el
-ops leader completa la distribución de cada empleado, con el último valor
-enviado como placeholder. Al enviar, se genera un Excel de auditoría y se
-dispara un email de notificación.
+Prototipo fullstack funcional con dos roles:
+
+- **Admin**: sube el Excel de HC List / Cost to Serve (una hoja por ops
+  leader). La app valida su estructura, reemplaza la data y sincroniza
+  automáticamente las cuentas de los ops leaders (altas con contraseña por
+  defecto, bajas si su hoja ya no aparece).
+- **Ops leader**: inicia sesión y ve una **tabla editable con la lista de
+  empleados a su cargo** (su hoja del Excel). Las columnas de datos maestros
+  (A–I) vienen ya cargadas y son de solo lectura; desde la columna J en
+  adelante completa la distribución de cada empleado, con el último valor
+  enviado como placeholder. Al enviar, se genera un Excel de auditoría y se
+  dispara un email de notificación.
 
 ## Stack
 
@@ -44,6 +49,31 @@ data real: empleados sin asignación activa quedan marcados "OK" aunque su
 distribución esté en blanco). El envío se **bloquea** si algún grupo no
 suma 100% (excepto ese caso).
 
+## Carga del admin
+
+El usuario admin ve, en vez de la tabla, una pantalla para subir el Excel
+(`POST /api/admin/upload`, protegido por `requireAdmin`). Al subirlo:
+
+1. Se valida que **cada hoja** tenga todas las columnas esperadas
+   (`server/utils/columns.js` → `SOURCE_HEADER_ORDER`). Si falta alguna, se
+   rechaza el archivo completo y no se guarda nada.
+2. Si es válido, reemplaza `server/data/data.xlsx` tal cual (mismo archivo,
+   sin reescribir formato).
+3. Sincroniza `server/data/users.json` (`server/utils/users.js`) a partir de
+   los nombres de hoja encontrados:
+   - Hoja nueva → crea una cuenta de ops leader (`username` derivado del
+     primer nombre de la hoja) con la contraseña compartida por defecto
+     (`ops2026`).
+   - Hoja que ya existía y estaba deshabilitada → la reactiva, sin tocar su
+     contraseña.
+   - Ops leader cuya hoja ya no aparece en el archivo → se deshabilita
+     (`active: false`); no puede volver a iniciar sesión hasta que su hoja
+     reaparezca en una carga futura.
+   - El usuario admin nunca se ve afectado por esta sincronización.
+
+La respuesta de la carga (y la pantalla de admin) muestra las cuentas
+nuevas con su contraseña temporal, las reactivadas y las deshabilitadas.
+
 ## Estructura
 
 ```
@@ -52,17 +82,22 @@ server/
   routes/auth.js           POST /api/auth/login, /logout, GET /api/auth/me
   routes/employees.js      GET /api/employees (empleados + previous_value del ops leader logueado)
   routes/submit.js         POST /api/submit (valida por fila, guarda Excel, envía email)
+  routes/admin.js          POST /api/admin/upload (reemplaza data.xlsx + sincroniza ops leaders)
+  middleware/requireOpsLeader.js  Solo rol ops_leader
+  middleware/requireAdmin.js      Solo rol admin
   utils/columns.js         Metadata de columnas (readonly / editable / grupos que suman 1)
-  utils/excel.js           Lectura/escritura de data.xlsx y de los envíos
+  utils/excel.js           Lectura/escritura de data.xlsx, envíos y validación de uploads
+  utils/users.js           Lectura/escritura de users.json + alta/baja automática de ops leaders
   utils/email.js           Envío de email con Nodemailer
-  data/users.json          Ops leaders (passwords con hash bcrypt) + hoja asociada
-  data/data.xlsx            HC List / Cost to Serve real: una hoja por ops leader
-  data/seed.js             Script para (re)generar users.json
+  data/users.json          Admin + ops leaders (passwords con hash bcrypt), hoja asociada y estado active
+  data/data.xlsx            HC List / Cost to Serve real: una hoja por ops leader (reemplazable por el admin)
+  data/seed.js             Script para (re)generar users.json desde cero
   data/submissions/        Excels de auditoría generados en cada envío
 
 client/
-  src/App.jsx                       Enrutamiento simple: sesión -> login o tabla
+  src/App.jsx                       Enrutamiento por rol: admin -> carga, ops_leader -> tabla
   src/components/Login.jsx           Pantalla de login
+  src/components/AdminUpload.jsx      Carga de Excel + resumen de altas/bajas
   src/components/EmployeeTable.jsx    Tabla editable + validación en vivo + envío
 ```
 
@@ -92,17 +127,19 @@ Luego abre `http://localhost:5173`.
 
 `server/data/data.xlsx` es el archivo real de HC List / Cost to Serve
 (provisto por el negocio) y no se regenera con el seed — solo `users.json`
-se recrea a partir de `server/data/seed.js`.
+se recrea a partir de `server/data/seed.js`. Para reemplazarlo, usa la
+pantalla de admin (o `POST /api/admin/upload`) en vez de copiarlo a mano.
 
-### Usuarios (ops leaders)
+### Usuarios
 
-| Usuario    | Contraseña | Hoja en data.xlsx     |
-|------------|------------|------------------------|
-| `chris`    | `ops2026`  | Chris TS-TO-AMS        |
-| `cristian` | `ops2026`  | Cristian TS EMEA       |
-| `adriano`  | `ops2026`  | Adriano Crea-EMEA      |
-| `nicolas`  | `ops2026`  | Nicolas TO EMA         |
-| `derick`   | `ops2026`  | Derick AX EMEA         |
+| Usuario    | Contraseña  | Rol        | Hoja en data.xlsx     |
+|------------|-------------|------------|------------------------|
+| `admin`    | `admin2026` | admin      | —                      |
+| `chris`    | `ops2026`   | ops_leader | Chris TS-TO-AMS        |
+| `cristian` | `ops2026`   | ops_leader | Cristian TS EMEA       |
+| `adriano`  | `ops2026`   | ops_leader | Adriano Crea-EMEA      |
+| `nicolas`  | `ops2026`   | ops_leader | Nicolas TO EMA         |
+| `derick`   | `ops2026`   | ops_leader | Derick AX EMEA         |
 
 Cambia estas contraseñas antes de cualquier uso real (son solo para el
 prototipo).

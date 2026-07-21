@@ -73,8 +73,8 @@ export default function Login({ onLogin }) {
         </form>
 
         <p className="login-hint">
-          Prototipo de demostración. Usuarios de prueba: chris / cristian / adriano / nicolas / derick,
-          contraseña: ops2026
+          Prototipo de demostración. Admin: admin / admin2026. Ops leaders: chris / cristian / adriano /
+          nicolas / derick, contraseña: ops2026
         </p>
       </div>
     </div>

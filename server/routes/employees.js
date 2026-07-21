@@ -1,10 +1,10 @@
 const express = require("express");
-const requireAuth = require("../middleware/requireAuth");
+const requireOpsLeader = require("../middleware/requireOpsLeader");
 const { getEmployeesForUser } = require("../utils/excel");
 
 const router = express.Router();
 
-router.get("/", requireAuth, (req, res) => {
+router.get("/", requireOpsLeader, (req, res) => {
   try {
     const data = getEmployeesForUser(req.session.user.sheetName);
     res.json(data);

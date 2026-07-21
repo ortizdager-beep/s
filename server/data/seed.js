@@ -4,14 +4,17 @@
  *
  * server/data/data.xlsx NO se regenera acá: es el archivo real de HC List
  * (Cost to Serve) provisto por el negocio, con una hoja por ops leader y
- * los valores del último envío ya cargados como previous_value.
+ * los valores del último envío ya cargados como previous_value. Se
+ * reemplaza subiendo un nuevo archivo desde la pantalla de admin.
  */
 const fs = require("fs");
 const path = require("path");
 const bcrypt = require("bcryptjs");
 
+const ADMIN = { username: "admin", password: "admin2026", name: "Administrador" };
+
 // username -> nombre para mostrar + nombre exacto de la hoja en data.xlsx
-const USERS = [
+const OPS_LEADERS = [
   { username: "chris", password: "ops2026", name: "Chris", sheetName: "Chris TS-TO-AMS" },
   { username: "cristian", password: "ops2026", name: "Cristian", sheetName: "Cristian TS EMEA" },
   { username: "adriano", password: "ops2026", name: "Adriano", sheetName: "Adriano Crea-EMEA" },
@@ -20,19 +23,31 @@ const USERS = [
 ];
 
 function buildUsers() {
-  const users = USERS.map((u) => ({
+  const adminUser = {
+    username: ADMIN.username,
+    name: ADMIN.name,
+    role: "admin",
+    passwordHash: bcrypt.hashSync(ADMIN.password, 10),
+  };
+
+  const opsLeaderUsers = OPS_LEADERS.map((u) => ({
     username: u.username,
     name: u.name,
     sheetName: u.sheetName,
+    role: "ops_leader",
+    active: true,
     passwordHash: bcrypt.hashSync(u.password, 10),
   }));
+
   fs.writeFileSync(
     path.join(__dirname, "users.json"),
-    JSON.stringify(users, null, 2)
+    JSON.stringify([adminUser, ...opsLeaderUsers], null, 2)
   );
-  console.log("users.json generado con", users.length, "ops leaders.");
+
+  console.log("users.json generado con 1 admin y", opsLeaderUsers.length, "ops leaders.");
   console.log("Credenciales de prueba (usuario / contraseña):");
-  USERS.forEach((u) => console.log(`  - ${u.username} / ${u.password}  (hoja: ${u.sheetName})`));
+  console.log(`  - ${ADMIN.username} / ${ADMIN.password}  (admin)`);
+  OPS_LEADERS.forEach((u) => console.log(`  - ${u.username} / ${u.password}  (hoja: ${u.sheetName})`));
 }
 
 buildUsers();
@@ -45,6 +60,6 @@ if (!fs.existsSync(submissionsDir)) {
 const dataXlsxPath = path.join(__dirname, "data.xlsx");
 if (!fs.existsSync(dataXlsxPath)) {
   console.warn(
-    "ADVERTENCIA: no se encontró data.xlsx. Coloca el archivo real de HC List / Cost to Serve en server/data/data.xlsx."
+    "ADVERTENCIA: no se encontró data.xlsx. Coloca el archivo real de HC List / Cost to Serve en server/data/data.xlsx, o subilo desde la pantalla de admin."
   );
 }

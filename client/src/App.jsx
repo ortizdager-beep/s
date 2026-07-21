@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import Login from "./components/Login.jsx";
 import EmployeeTable from "./components/EmployeeTable.jsx";
+import AdminUpload from "./components/AdminUpload.jsx";
 import Spinner from "./components/Spinner.jsx";
 import { api } from "./api.js";
 
@@ -20,7 +21,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || user.role !== "ops_leader") return;
     setLoadingEmployees(true);
     setEmployeeDataError("");
     api
@@ -70,20 +71,26 @@ export default function App() {
       </header>
 
       <main className="page-content">
-        {loadingEmployees && (
-          <div className="center-loading">
-            <Spinner dark />
-            <span>Cargando datos anteriores...</span>
-          </div>
-        )}
+        {user.role === "admin" && <AdminUpload adminName={user.name} />}
 
-        {!loadingEmployees && employeeDataError && (
-          <div className="form-card">
-            <div className="alert-banner alert-error">{employeeDataError}</div>
-          </div>
-        )}
+        {user.role === "ops_leader" && (
+          <>
+            {loadingEmployees && (
+              <div className="center-loading">
+                <Spinner dark />
+                <span>Cargando datos anteriores...</span>
+              </div>
+            )}
 
-        {!loadingEmployees && employeeData && <EmployeeTable data={employeeData} opsLeaderName={user.name} />}
+            {!loadingEmployees && employeeDataError && (
+              <div className="form-card">
+                <div className="alert-banner alert-error">{employeeDataError}</div>
+              </div>
+            )}
+
+            {!loadingEmployees && employeeData && <EmployeeTable data={employeeData} opsLeaderName={user.name} />}
+          </>
+        )}
       </main>
     </div>
   );

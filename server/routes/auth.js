@@ -1,17 +1,8 @@
 const express = require("express");
-const fs = require("fs");
-const path = require("path");
 const bcrypt = require("bcryptjs");
+const { loadUsers } = require("../utils/users");
 
 const router = express.Router();
-const USERS_PATH = path.join(__dirname, "..", "data", "users.json");
-
-function loadUsers() {
-  if (!fs.existsSync(USERS_PATH)) {
-    throw new Error("No se encontró users.json. Ejecuta 'npm run seed' en server/.");
-  }
-  return JSON.parse(fs.readFileSync(USERS_PATH, "utf-8"));
-}
 
 router.post("/login", (req, res) => {
   const { username, password } = req.body || {};
@@ -31,9 +22,17 @@ router.post("/login", (req, res) => {
   if (!user || !bcrypt.compareSync(password, user.passwordHash)) {
     return res.status(401).json({ error: "Usuario o contraseña incorrectos." });
   }
+  if (user.active === false) {
+    return res.status(401).json({ error: "Esta cuenta está deshabilitada. Contacta al administrador." });
+  }
 
-  req.session.user = { username: user.username, name: user.name, sheetName: user.sheetName };
-  res.json({ username: user.username, name: user.name });
+  req.session.user = {
+    username: user.username,
+    name: user.name,
+    role: user.role,
+    sheetName: user.sheetName,
+  };
+  res.json({ username: user.username, name: user.name, role: user.role });
 });
 
 router.post("/logout", (req, res) => {
@@ -47,8 +46,8 @@ router.get("/me", (req, res) => {
   if (!req.session || !req.session.user) {
     return res.status(401).json({ error: "No autenticado." });
   }
-  const { username, name } = req.session.user;
-  res.json({ username, name });
+  const { username, name, role } = req.session.user;
+  res.json({ username, name, role });
 });
 
 module.exports = router;

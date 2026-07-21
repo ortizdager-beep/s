@@ -1,6 +1,6 @@
 const path = require("path");
 const express = require("express");
-const requireAuth = require("../middleware/requireAuth");
+const requireOpsLeader = require("../middleware/requireOpsLeader");
 const { EDITABLE_COLUMNS } = require("../utils/columns");
 const {
   getEmployeesForUser,
@@ -12,7 +12,7 @@ const { sendSubmissionEmail } = require("../utils/email");
 
 const router = express.Router();
 
-router.post("/", requireAuth, async (req, res) => {
+router.post("/", requireOpsLeader, async (req, res) => {
   const { username, name, sheetName } = req.session.user;
   const submittedRows = (req.body && req.body.rows) || [];
 
