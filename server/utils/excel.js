@@ -182,6 +182,64 @@ function updatePreviousValues(sheetName, rowsById) {
   XLSX.writeFile(wb, DATA_XLSX_PATH);
 }
 
+/**
+ * Genera la plantilla descargable de un ops leader: sus columnas de datos
+ * maestros completas (solo lectura) y las columnas editables en blanco,
+ * para que las complete en Excel y vuelva a subir el archivo.
+ */
+function buildTemplateWorkbook(sheetName) {
+  const { rows } = readSheetRows(sheetName);
+
+  const templateRows = rows.map((row) => {
+    const next = {};
+    READONLY_COLUMNS.forEach((c) => {
+      next[c.field_label] = row[c.field_label] ?? "";
+    });
+    EDITABLE_COLUMNS.forEach((c) => {
+      next[c.field_label] = "";
+    });
+    next[COMPUTED_COLUMN.field_label] = "";
+    return next;
+  });
+
+  const ws = XLSX.utils.json_to_sheet(templateRows, { header: SOURCE_HEADER_ORDER });
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Plantilla");
+
+  return XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+}
+
+/**
+ * Lee una plantilla completada y subida por el ops leader (primera hoja
+ * del archivo) y la convierte a la misma forma que espera processSubmission:
+ * [{ id_employee, values: { field_name: value } }].
+ */
+function parseSubmissionWorkbook(buffer) {
+  let wb;
+  try {
+    wb = XLSX.read(buffer, { type: "buffer" });
+  } catch (err) {
+    throw new Error("El archivo no es un Excel válido.");
+  }
+
+  if (wb.SheetNames.length === 0) {
+    throw new Error("El archivo no tiene hojas.");
+  }
+
+  const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "" });
+  const idLabel = NAME_TO_LABEL[KEY_FIELD];
+
+  return rows
+    .filter((row) => String(row[idLabel] ?? "").trim() !== "")
+    .map((row) => {
+      const values = {};
+      EDITABLE_COLUMNS.forEach((c) => {
+        values[c.field_name] = String(row[c.field_label] ?? "").trim();
+      });
+      return { id_employee: row[idLabel], values };
+    });
+}
+
 module.exports = {
   LABEL_TO_NAME,
   NAME_TO_LABEL,
@@ -190,4 +248,6 @@ module.exports = {
   getEmployeesForUser,
   writeSubmissionWorkbook,
   updatePreviousValues,
+  buildTemplateWorkbook,
+  parseSubmissionWorkbook,
 };

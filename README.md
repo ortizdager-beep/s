@@ -10,8 +10,10 @@ Prototipo fullstack funcional con dos roles:
   empleados a su cargo** (su hoja del Excel). Las columnas de datos maestros
   (A–I) vienen ya cargadas y son de solo lectura; desde la columna J en
   adelante completa la distribución de cada empleado, con el último valor
-  enviado como placeholder. Al enviar, se genera un Excel de auditoría y se
-  dispara un email de notificación.
+  enviado como placeholder. Puede completarla a mano en la tabla, o
+  **descargar una plantilla Excel, completarla offline y volver a subirla**
+  — ambos caminos pasan por la misma validación. Al enviar, se genera un
+  Excel de auditoría y se dispara un email de notificación.
 
 ## Stack
 
@@ -74,19 +76,46 @@ El usuario admin ve, en vez de la tabla, una pantalla para subir el Excel
 La respuesta de la carga (y la pantalla de admin) muestra las cuentas
 nuevas con su contraseña temporal, las reactivadas y las deshabilitadas.
 
+## Descarga y subida de plantilla (ops leader)
+
+Además de completar la tabla a mano, el ops leader tiene dos botones:
+
+- **Descargar plantilla** (`GET /api/employees/template`): genera un `.xlsx`
+  con su hoja — columnas de datos maestros completas (solo lectura) y las
+  columnas editables **en blanco**, igual que arrancan en la tabla web. No
+  incluye valores anteriores precargados: se completa desde cero, en Excel.
+- **Subir plantilla completada** (`POST /api/submit/upload`, multipart): lee
+  la primera hoja del archivo subido y la valida con **las mismas reglas y
+  el mismo código** que el envío manual (`server/utils/submission.js` →
+  `processSubmission`, compartido por ambos caminos):
+  - Debe incluir **todos** los empleados de su roster (si falta alguno, se
+    rechaza el archivo completo señalando quién falta).
+  - No acepta IDs de empleados que no sean suyos.
+  - Cada fila debe tener los campos obligatorios completos y ambos grupos
+    de distribución sumando 100% (salvo FTE % = 0).
+  - `check distribution sum` del archivo se ignora — el backend siempre la
+    recalcula.
+
+  Si hay errores, la respuesta lista cada empleado con el problema
+  encontrado (obligatorio faltante, distribución que no suma 100%, empleado
+  faltante o desconocido) y no se guarda ni envía nada. Si todo es válido,
+  el resultado es idéntico al envío manual: se genera el Excel de auditoría,
+  se actualiza `data.xlsx` y se envía el email de notificación.
+
 ## Estructura
 
 ```
 server/
   server.js               Punto de entrada Express (sesiones, CORS, rutas)
   routes/auth.js           POST /api/auth/login, /logout, GET /api/auth/me
-  routes/employees.js      GET /api/employees (empleados + previous_value del ops leader logueado)
-  routes/submit.js         POST /api/submit (valida por fila, guarda Excel, envía email)
+  routes/employees.js      GET /api/employees, GET /api/employees/template (descarga plantilla en blanco)
+  routes/submit.js         POST /api/submit (JSON) y POST /api/submit/upload (Excel) — misma validación
   routes/admin.js          POST /api/admin/upload (reemplaza data.xlsx + sincroniza ops leaders)
   middleware/requireOpsLeader.js  Solo rol ops_leader
   middleware/requireAdmin.js      Solo rol admin
   utils/columns.js         Metadata de columnas (readonly / editable / grupos que suman 1)
-  utils/excel.js           Lectura/escritura de data.xlsx, envíos y validación de uploads
+  utils/excel.js           Lectura/escritura de data.xlsx, plantillas, envíos y validación de uploads
+  utils/submission.js      Lógica compartida de validación + guardado + email (processSubmission)
   utils/users.js           Lectura/escritura de users.json + alta/baja automática de ops leaders
   utils/email.js           Envío de email con Nodemailer
   data/users.json          Admin + ops leaders (passwords con hash bcrypt), hoja asociada y estado active
@@ -98,7 +127,7 @@ client/
   src/App.jsx                       Enrutamiento por rol: admin -> carga, ops_leader -> tabla
   src/components/Login.jsx           Pantalla de login
   src/components/AdminUpload.jsx      Carga de Excel + resumen de altas/bajas
-  src/components/EmployeeTable.jsx    Tabla editable + validación en vivo + envío
+  src/components/EmployeeTable.jsx    Tabla editable + descarga/subida de plantilla + envío
 ```
 
 ## Cómo ejecutar

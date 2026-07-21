@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Spinner from "./Spinner.jsx";
 import { api } from "../api.js";
 
@@ -91,6 +91,12 @@ export default function EmployeeTable({ data, opsLeaderName }) {
   const [result, setResult] = useState(null);
   const [submitError, setSubmitError] = useState("");
 
+  const fileInputRef = useRef(null);
+  const [templateDownloading, setTemplateDownloading] = useState(false);
+  const [fileUploading, setFileUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const [uploadRowErrors, setUploadRowErrors] = useState(null);
+
   const employeesById = useMemo(
     () => Object.fromEntries(employees.map((e) => [e.id_employee, e])),
     [employees]
@@ -180,6 +186,44 @@ export default function EmployeeTable({ data, opsLeaderName }) {
     }
   }
 
+  async function handleDownloadTemplate() {
+    setTemplateDownloading(true);
+    setUploadError("");
+    try {
+      await api.downloadTemplate();
+    } catch (err) {
+      setUploadError(err.message || "No se pudo descargar la plantilla.");
+    } finally {
+      setTemplateDownloading(false);
+    }
+  }
+
+  async function handleFileUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setFileUploading(true);
+    setUploadError("");
+    setUploadRowErrors(null);
+    setResult(null);
+    setSubmitError("");
+
+    try {
+      const response = await api.uploadSubmissionFile(file);
+      setResult(response);
+      setValues(Object.fromEntries(employees.map((emp) => [emp.id_employee, emptyValuesFor(editableColumns)])));
+      setErrors({});
+    } catch (err) {
+      if (err.status === 400 && err.body?.rowErrors) {
+        setUploadRowErrors(err.body.rowErrors);
+      }
+      setUploadError(err.message || "No se pudo procesar el archivo.");
+    } finally {
+      setFileUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
   return (
     <div className="table-page">
       <div className="table-header">
@@ -190,6 +234,44 @@ export default function EmployeeTable({ data, opsLeaderName }) {
           deben sumar 100%.
         </p>
       </div>
+
+      <div className="template-actions">
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={handleDownloadTemplate}
+          disabled={templateDownloading}
+        >
+          {templateDownloading && <Spinner dark />}
+          {templateDownloading ? "Descargando..." : "Descargar plantilla"}
+        </button>
+
+        <label className={`btn-secondary file-upload-label${fileUploading ? " is-disabled" : ""}`}>
+          {fileUploading && <Spinner dark />}
+          {fileUploading ? "Procesando..." : "Subir plantilla completada"}
+          <input
+            type="file"
+            accept=".xlsx"
+            ref={fileInputRef}
+            onChange={handleFileUpload}
+            disabled={fileUploading}
+          />
+        </label>
+      </div>
+
+      {uploadError && <div className="alert-banner alert-error">{uploadError}</div>}
+      {uploadRowErrors && (
+        <div className="alert-banner alert-error">
+          <strong>Errores en el archivo subido:</strong>
+          <ul className="alert-error-list">
+            {uploadRowErrors.map((re) => (
+              <li key={re.id_employee}>
+                {re.worker ? `${re.worker} (${re.id_employee})` : re.id_employee}: {re.errors.join(" ")}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {submitError && <div className="alert-banner alert-error">{submitError}</div>}
       {result?.ok && (

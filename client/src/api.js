@@ -33,6 +33,30 @@ async function upload(path, file) {
   return handleResponse(res);
 }
 
+async function downloadFile(path, fallbackFileName) {
+  const res = await fetch(`${BASE_URL}${path}`, { credentials: "include" });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    const error = new Error((body && body.error) || `Error ${res.status}`);
+    error.status = res.status;
+    throw error;
+  }
+
+  const disposition = res.headers.get("content-disposition") || "";
+  const match = disposition.match(/filename="?([^"]+)"?/);
+  const fileName = match ? match[1] : fallbackFileName;
+
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 export const api = {
   login: (username, password) =>
     request("/auth/login", { method: "POST", body: JSON.stringify({ username, password }) }),
@@ -41,4 +65,6 @@ export const api = {
   getEmployees: () => request("/employees"),
   submit: (rows) => request("/submit", { method: "POST", body: JSON.stringify({ rows }) }),
   uploadDataFile: (file) => upload("/admin/upload", file),
+  downloadTemplate: () => downloadFile("/employees/template", "plantilla.xlsx"),
+  uploadSubmissionFile: (file) => upload("/submit/upload", file),
 };
