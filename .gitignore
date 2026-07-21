@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+*.log
+npm-debug.log*
+
+# Archivos de plantillas generadas en tiempo de ejecución (no versionar)
+server/data/submissions/*.xlsx

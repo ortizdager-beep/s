@@ -1,0 +1,17 @@
+[
+  {
+    "username": "jperez",
+    "name": "Juan Pérez",
+    "passwordHash": "$2a$10$9A0m1h2IihnH5/o1rEkC/.PmQSJoaA2bwtus8XAwT3xKKAFb1pRs2"
+  },
+  {
+    "username": "mgarcia",
+    "name": "María García",
+    "passwordHash": "$2a$10$AJwhceFAZjd8v3VBPZiru.uYq/JU5PGjS1RUxIHtHtqTTp8uRUIc."
+  },
+  {
+    "username": "lrodriguez",
+    "name": "Luis Rodríguez",
+    "passwordHash": "$2a$10$oZILtMwRZI0D5wKMZYioW.uFkXXB.ysibjMPFBlr8Q7KxCbqDZjia"
+  }
+]
