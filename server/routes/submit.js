@@ -1,49 +1,102 @@
+const path = require("path");
 const express = require("express");
 const requireAuth = require("../middleware/requireAuth");
-const { getFieldsForUser, writeSubmissionWorkbook, updatePreviousValues } = require("../utils/excel");
+const { EDITABLE_COLUMNS } = require("../utils/columns");
+const {
+  getEmployeesForUser,
+  writeSubmissionWorkbook,
+  updatePreviousValues,
+  computeCheckDistribution,
+} = require("../utils/excel");
 const { sendSubmissionEmail } = require("../utils/email");
 
 const router = express.Router();
 
 router.post("/", requireAuth, async (req, res) => {
-  const { username, name } = req.session.user;
-  const values = (req.body && req.body.values) || {};
+  const { username, name, sheetName } = req.session.user;
+  const submittedRows = (req.body && req.body.rows) || [];
 
-  let fields;
+  if (!Array.isArray(submittedRows) || submittedRows.length === 0) {
+    return res.status(400).json({ error: "No se recibieron filas para enviar." });
+  }
+
+  let employeeData;
   try {
-    fields = getFieldsForUser(username);
+    employeeData = getEmployeesForUser(sheetName);
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: err.message });
   }
 
-  const missing = fields.filter((f) => f.is_required && !String(values[f.field_name] ?? "").trim());
-  if (missing.length > 0) {
-    return res.status(400).json({
-      error: "Faltan campos obligatorios.",
-      missingFields: missing.map((f) => f.field_name),
+  const employeesById = Object.fromEntries(employeeData.employees.map((e) => [e.id_employee, e]));
+
+  const rowErrors = [];
+  const mergedRows = [];
+
+  submittedRows.forEach(({ id_employee, values }) => {
+    const employee = employeesById[id_employee];
+    if (!employee) {
+      rowErrors.push({ id_employee, errors: ["Empleado no encontrado."] });
+      return;
+    }
+
+    const submittedValues = values || {};
+    const mergedEditable = {};
+    const errors = [];
+
+    EDITABLE_COLUMNS.forEach((col) => {
+      const value = String(submittedValues[col.field_name] ?? "").trim();
+      mergedEditable[col.field_name] = value;
+      if (col.is_required && !value) {
+        errors.push(`${col.field_label}: obligatorio.`);
+      }
     });
+
+    const checkValue = computeCheckDistribution({
+      fte_pct: employee.readonly.fte_pct,
+      ...mergedEditable,
+    });
+    if (checkValue !== "OK") {
+      errors.push(`La distribución no suma 100% (${checkValue}).`);
+    }
+
+    if (errors.length > 0) {
+      rowErrors.push({ id_employee, worker: employee.readonly.worker, errors });
+    }
+
+    mergedRows.push({ employee, mergedEditable, checkValue });
+  });
+
+  if (rowErrors.length > 0) {
+    return res.status(400).json({ error: "Hay filas con errores de validación.", rowErrors });
   }
 
   const submittedAt = new Date().toISOString();
-  const records = fields.map((f) => ({
-    id_field: f.id_field,
-    field_name: f.field_name,
-    field_label: f.field_label,
-    submitted_value: String(values[f.field_name] ?? "").trim(),
-    previous_value: f.previous_value,
-  }));
+  const submissionRows = [];
+  const rowsById = {};
+
+  mergedRows.forEach(({ employee, mergedEditable, checkValue }) => {
+    rowsById[employee.id_employee] = mergedEditable;
+    EDITABLE_COLUMNS.forEach((col) => {
+      submissionRows.push({
+        id_employee: employee.id_employee,
+        employee_name: employee.readonly.worker,
+        field_name: col.field_name,
+        field_label: col.field_label,
+        submitted_value: mergedEditable[col.field_name],
+        previous_value: employee.editable[col.field_name],
+        check_distribution_sum: checkValue,
+        ops_leader: name,
+        timestamp: submittedAt,
+      });
+    });
+  });
 
   let fileName;
   try {
-    const written = writeSubmissionWorkbook({ username, name, submittedAt, records });
+    const written = writeSubmissionWorkbook({ username, name, submittedAt, submissionRows });
     fileName = written.fileName;
-
-    const valuesByFieldName = {};
-    records.forEach((r) => {
-      if (r.submitted_value) valuesByFieldName[r.field_name] = r.submitted_value;
-    });
-    updatePreviousValues(username, valuesByFieldName);
+    updatePreviousValues(sheetName, rowsById);
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "No se pudo guardar el archivo Excel de la plantilla." });
@@ -54,8 +107,8 @@ router.post("/", requireAuth, async (req, res) => {
     const result = await sendSubmissionEmail({
       opsLeaderName: name,
       timestamp: submittedAt,
-      records,
-      attachmentPath: require("path").join(__dirname, "..", "data", "submissions", fileName),
+      employeeCount: mergedRows.length,
+      attachmentPath: path.join(__dirname, "..", "data", "submissions", fileName),
       attachmentName: fileName,
     });
     emailInfo = { sent: true, previewUrl: result.previewUrl || null };
@@ -64,12 +117,7 @@ router.post("/", requireAuth, async (req, res) => {
     emailInfo = { sent: false, error: err.message };
   }
 
-  res.json({
-    ok: true,
-    fileName,
-    submittedAt,
-    email: emailInfo,
-  });
+  res.json({ ok: true, fileName, submittedAt, employeeCount: mergedRows.length, email: emailInfo });
 });
 
 module.exports = router;

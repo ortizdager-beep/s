@@ -4,7 +4,7 @@ const session = require("express-session");
 const cors = require("cors");
 
 const authRoutes = require("./routes/auth");
-const fieldsRoutes = require("./routes/fields");
+const employeesRoutes = require("./routes/employees");
 const submitRoutes = require("./routes/submit");
 
 const app = express();
@@ -34,7 +34,7 @@ app.use(
 );
 
 app.use("/api/auth", authRoutes);
-app.use("/api/fields", fieldsRoutes);
+app.use("/api/employees", employeesRoutes);
 app.use("/api/submit", submitRoutes);
 
 app.get("/api/health", (req, res) => res.json({ ok: true }));

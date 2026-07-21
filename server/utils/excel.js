@@ -1,65 +1,104 @@
 const fs = require("fs");
 const path = require("path");
 const XLSX = require("xlsx");
+const { KEY_FIELD, READONLY_COLUMNS, EDITABLE_COLUMNS, COMPUTED_COLUMN, SUM_GROUPS, SOURCE_HEADER_ORDER } = require("./columns");
 
 const DATA_XLSX_PATH = path.join(__dirname, "..", "data", "data.xlsx");
 const SUBMISSIONS_DIR = path.join(__dirname, "..", "data", "submissions");
 
-function parseBoolean(value) {
-  if (typeof value === "boolean") return value;
-  if (typeof value === "number") return value === 1;
-  if (typeof value === "string") {
-    return ["true", "1", "si", "sí", "x", "yes"].includes(value.trim().toLowerCase());
-  }
-  return false;
+const ALL_COLUMNS = [...READONLY_COLUMNS, ...EDITABLE_COLUMNS];
+const LABEL_TO_NAME = Object.fromEntries(ALL_COLUMNS.map((c) => [c.field_label, c.field_name]));
+const NAME_TO_LABEL = Object.fromEntries(ALL_COLUMNS.map((c) => [c.field_name, c.field_label]));
+
+function toNumber(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
 }
 
 /**
- * Obtiene la definición de campos + previous_value para un ops leader.
- * Cada ops leader tiene su propia hoja en data.xlsx (nombre = username).
- * Si el usuario no tiene hoja propia todavía, se usa la primera hoja
- * disponible como plantilla de campos, sin previous_value.
+ * Calcula "check distribution sum" para una fila (valores ya en formato
+ * field_name -> value). Se omite la exigencia de que sumen 1 cuando el
+ * FTE % es 0 (empleado sin asignación activa), igual que en la data real.
  */
-function getFieldsForUser(username) {
+function computeCheckDistribution(rowValues) {
+  const fte = toNumber(rowValues.fte_pct);
+  if (fte === 0) return "OK";
+
+  const allGroupsOk = SUM_GROUPS.every((group) => {
+    const sum = group.fields.reduce((acc, f) => acc + toNumber(rowValues[f]), 0);
+    return Math.abs(sum - 1) < 0.001;
+  });
+  return allGroupsOk ? "OK" : "Not 100%";
+}
+
+function readSheetRows(sheetName) {
   if (!fs.existsSync(DATA_XLSX_PATH)) {
-    throw new Error("No se encontró data.xlsx. Ejecuta 'npm run seed' en server/.");
+    throw new Error("No se encontró data.xlsx en server/data/.");
   }
   const wb = XLSX.readFile(DATA_XLSX_PATH);
-  const sheetName = wb.SheetNames.includes(username) ? username : wb.SheetNames[0];
-  const sheet = wb.Sheets[sheetName];
-  const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-
-  return rows.map((row) => ({
-    id_field: String(row.id_field ?? ""),
-    field_name: String(row.field_name ?? ""),
-    field_label: String(row.field_label ?? row.field_name ?? ""),
-    is_required: parseBoolean(row.is_required),
-    previous_value:
-      sheetName === username ? String(row.previous_value ?? "").trim() : "",
-    data_type: String(row.data_type ?? "text").trim() || "text",
-  }));
+  if (!wb.SheetNames.includes(sheetName)) {
+    throw new Error(`No existe la hoja "${sheetName}" en data.xlsx.`);
+  }
+  return { wb, rows: XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { defval: "" }) };
 }
 
 /**
- * Escribe un nuevo archivo xlsx con la plantilla enviada por el ops leader.
- * Devuelve { filePath, fileName }.
+ * Devuelve la definición de columnas (para que el frontend sepa qué
+ * mostrar/editar) y la lista de empleados de la hoja del ops leader,
+ * con los valores actuales de data.xlsx como previous_value.
  */
-function writeSubmissionWorkbook({ username, name, submittedAt, records }) {
+function getEmployeesForUser(sheetName) {
+  const { rows } = readSheetRows(sheetName);
+
+  const employees = rows.map((row) => {
+    const readonly = {};
+    READONLY_COLUMNS.forEach((c) => {
+      readonly[c.field_name] = row[c.field_label] ?? "";
+    });
+
+    const editable = {};
+    EDITABLE_COLUMNS.forEach((c) => {
+      editable[c.field_name] = String(row[c.field_label] ?? "").trim();
+    });
+
+    return {
+      id_employee: readonly.id_employee,
+      readonly,
+      editable,
+      check_distribution_sum: String(row[COMPUTED_COLUMN.field_label] ?? "").trim(),
+    };
+  });
+
+  return {
+    readonlyColumns: READONLY_COLUMNS,
+    editableColumns: EDITABLE_COLUMNS,
+    computedColumn: COMPUTED_COLUMN,
+    sumGroups: SUM_GROUPS,
+    employees,
+  };
+}
+
+/**
+ * Escribe el Excel de auditoría de un envío, en formato "largo": una fila
+ * por (empleado, campo) para que quede trazado el valor anterior y el nuevo.
+ */
+function writeSubmissionWorkbook({ username, name, submittedAt, submissionRows }) {
   if (!fs.existsSync(SUBMISSIONS_DIR)) {
     fs.mkdirSync(SUBMISSIONS_DIR, { recursive: true });
   }
 
-  const rows = records.map((r) => ({
-    id_field: r.id_field,
-    field_name: r.field_name,
-    submitted_value: r.submitted_value,
-    previous_value: r.previous_value,
-    ops_leader: name,
-    timestamp: submittedAt,
-  }));
-
-  const ws = XLSX.utils.json_to_sheet(rows, {
-    header: ["id_field", "field_name", "submitted_value", "previous_value", "ops_leader", "timestamp"],
+  const ws = XLSX.utils.json_to_sheet(submissionRows, {
+    header: [
+      "id_employee",
+      "employee_name",
+      "field_name",
+      "field_label",
+      "submitted_value",
+      "previous_value",
+      "check_distribution_sum",
+      "ops_leader",
+      "timestamp",
+    ],
   });
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Plantilla");
@@ -74,40 +113,44 @@ function writeSubmissionWorkbook({ username, name, submittedAt, records }) {
 }
 
 /**
- * Actualiza la hoja del ops leader en data.xlsx con los valores recién
- * enviados, para que la próxima carga muestre estos como previous_value.
+ * Actualiza en data.xlsx los valores editables recién enviados para cada
+ * empleado (para que la próxima carga los muestre como previous_value), y
+ * recalcula "check distribution sum".
  */
-function updatePreviousValues(username, valuesByFieldName) {
-  const wb = XLSX.readFile(DATA_XLSX_PATH);
-  const templateSheetName = wb.SheetNames.includes(username) ? username : wb.SheetNames[0];
-  const templateRows = XLSX.utils.sheet_to_json(wb.Sheets[templateSheetName], { defval: "" });
+function updatePreviousValues(sheetName, rowsById) {
+  const { wb, rows } = readSheetRows(sheetName);
 
-  const updatedRows = templateRows.map((row) => ({
-    id_field: row.id_field,
-    field_name: row.field_name,
-    field_label: row.field_label,
-    is_required: row.is_required,
-    previous_value: Object.prototype.hasOwnProperty.call(valuesByFieldName, row.field_name)
-      ? valuesByFieldName[row.field_name]
-      : row.previous_value ?? "",
-    data_type: row.data_type,
-  }));
+  const updatedRows = rows.map((row) => {
+    const idEmployee = row[NAME_TO_LABEL[KEY_FIELD]];
+    const update = rowsById[idEmployee];
+    if (!update) return row;
 
-  const ws = XLSX.utils.json_to_sheet(updatedRows, {
-    header: ["id_field", "field_name", "field_label", "is_required", "previous_value", "data_type"],
+    const nextRow = { ...row };
+    EDITABLE_COLUMNS.forEach((c) => {
+      if (Object.prototype.hasOwnProperty.call(update, c.field_name)) {
+        nextRow[c.field_label] = update[c.field_name];
+      }
+    });
+
+    const valuesByFieldName = {};
+    [...READONLY_COLUMNS, ...EDITABLE_COLUMNS].forEach((c) => {
+      valuesByFieldName[c.field_name] = nextRow[c.field_label];
+    });
+    nextRow[COMPUTED_COLUMN.field_label] = computeCheckDistribution(valuesByFieldName);
+
+    return nextRow;
   });
 
-  if (wb.SheetNames.includes(username)) {
-    wb.Sheets[username] = ws;
-  } else {
-    XLSX.utils.book_append_sheet(wb, ws, username);
-  }
-
+  const ws = XLSX.utils.json_to_sheet(updatedRows, { header: SOURCE_HEADER_ORDER });
+  wb.Sheets[sheetName] = ws;
   XLSX.writeFile(wb, DATA_XLSX_PATH);
 }
 
 module.exports = {
-  getFieldsForUser,
+  LABEL_TO_NAME,
+  NAME_TO_LABEL,
+  computeCheckDistribution,
+  getEmployeesForUser,
   writeSubmissionWorkbook,
   updatePreviousValues,
 };

@@ -24,6 +24,6 @@ export const api = {
     request("/auth/login", { method: "POST", body: JSON.stringify({ username, password }) }),
   logout: () => request("/auth/logout", { method: "POST" }),
   me: () => request("/auth/me"),
-  getFields: () => request("/fields"),
-  submit: (values) => request("/submit", { method: "POST", body: JSON.stringify({ values }) }),
+  getEmployees: () => request("/employees"),
+  submit: (rows) => request("/submit", { method: "POST", body: JSON.stringify({ rows }) }),
 };

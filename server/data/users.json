@@ -1,17 +1,32 @@
 [
   {
-    "username": "jperez",
-    "name": "Juan Pérez",
-    "passwordHash": "$2a$10$9A0m1h2IihnH5/o1rEkC/.PmQSJoaA2bwtus8XAwT3xKKAFb1pRs2"
+    "username": "chris",
+    "name": "Chris",
+    "sheetName": "Chris TS-TO-AMS",
+    "passwordHash": "$2a$10$1P9gQxMfezslJs6kw1IuWer4YjuzUrCRJhbr6pNj73eiDtgF9Mmhi"
   },
   {
-    "username": "mgarcia",
-    "name": "María García",
-    "passwordHash": "$2a$10$AJwhceFAZjd8v3VBPZiru.uYq/JU5PGjS1RUxIHtHtqTTp8uRUIc."
+    "username": "cristian",
+    "name": "Cristian",
+    "sheetName": "Cristian TS EMEA",
+    "passwordHash": "$2a$10$d1xl9JcjR3AtuO8QY6KKAeIibclI75fCdLCB8z6PoCbl/THQaS3bW"
   },
   {
-    "username": "lrodriguez",
-    "name": "Luis Rodríguez",
-    "passwordHash": "$2a$10$oZILtMwRZI0D5wKMZYioW.uFkXXB.ysibjMPFBlr8Q7KxCbqDZjia"
+    "username": "adriano",
+    "name": "Adriano",
+    "sheetName": "Adriano Crea-EMEA",
+    "passwordHash": "$2a$10$v8qiyaoWVo6MetQOvtlU0e.xZKV0Xrjh61yioyWEZD8uPrNKhvYme"
+  },
+  {
+    "username": "nicolas",
+    "name": "Nicolas",
+    "sheetName": "Nicolas TO EMA",
+    "passwordHash": "$2a$10$zfaensOyKVt1oHnbd9RPReipa5CrAPRoWQyliu7VINbiQhwCWf8s2"
+  },
+  {
+    "username": "derick",
+    "name": "Derick",
+    "sheetName": "Derick AX EMEA",
+    "passwordHash": "$2a$10$EDaa4Eev98aF2St7nxRue.gFk2c8FJyUa9xm1M8EKfyML4uAdNeKS"
   }
 ]

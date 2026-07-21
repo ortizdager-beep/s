@@ -43,38 +43,18 @@ function getTransporter() {
   return transporterPromise;
 }
 
-function buildSummaryHtml({ opsLeaderName, timestamp, records }) {
-  const rows = records
-    .map(
-      (r) => `
-        <tr>
-          <td style="padding:8px;border:1px solid #e2e8f0;">${r.field_label}</td>
-          <td style="padding:8px;border:1px solid #e2e8f0;">${r.submitted_value || "<em>(vacío)</em>"}</td>
-          <td style="padding:8px;border:1px solid #e2e8f0;color:#64748b;">${r.previous_value || "-"}</td>
-        </tr>`
-    )
-    .join("");
-
+function buildSummaryHtml({ opsLeaderName, timestamp, employeeCount }) {
   return `
     <div style="font-family: Arial, sans-serif; color:#1e293b;">
       <h2 style="color:#1d4ed8;">Plantilla completada por ${opsLeaderName}</h2>
       <p><strong>Fecha/hora de envío:</strong> ${timestamp}</p>
-      <p>Resumen de los campos ingresados:</p>
-      <table style="border-collapse:collapse;width:100%;max-width:640px;">
-        <thead>
-          <tr style="background:#f1f5f9;">
-            <th style="padding:8px;border:1px solid #e2e8f0;text-align:left;">Campo</th>
-            <th style="padding:8px;border:1px solid #e2e8f0;text-align:left;">Valor enviado</th>
-            <th style="padding:8px;border:1px solid #e2e8f0;text-align:left;">Valor anterior</th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
+      <p><strong>Empleados actualizados:</strong> ${employeeCount}</p>
+      <p>Se adjunta el detalle completo (valor enviado y valor anterior por empleado y campo) en el Excel adjunto.</p>
     </div>
   `;
 }
 
-async function sendSubmissionEmail({ opsLeaderName, timestamp, records, attachmentPath, attachmentName }) {
+async function sendSubmissionEmail({ opsLeaderName, timestamp, employeeCount, attachmentPath, attachmentName }) {
   const transporter = await getTransporter();
   const to = process.env.EMAIL_DESTINO || "destino@empresa.com";
 
@@ -82,7 +62,7 @@ async function sendSubmissionEmail({ opsLeaderName, timestamp, records, attachme
     from: process.env.SMTP_FROM || '"Plantillas Ops" <no-reply@empresa.com>',
     to,
     subject: `Plantilla completada por ${opsLeaderName}`,
-    html: buildSummaryHtml({ opsLeaderName, timestamp, records }),
+    html: buildSummaryHtml({ opsLeaderName, timestamp, employeeCount }),
     attachments: attachmentPath
       ? [{ filename: attachmentName, path: attachmentPath }]
       : [],

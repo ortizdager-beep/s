@@ -1,15 +1,15 @@
 import { useEffect, useState } from "react";
 import Login from "./components/Login.jsx";
-import DynamicForm from "./components/DynamicForm.jsx";
+import EmployeeTable from "./components/EmployeeTable.jsx";
 import Spinner from "./components/Spinner.jsx";
 import { api } from "./api.js";
 
 export default function App() {
   const [user, setUser] = useState(null);
   const [checkingSession, setCheckingSession] = useState(true);
-  const [fields, setFields] = useState(null);
-  const [fieldsError, setFieldsError] = useState("");
-  const [loadingFields, setLoadingFields] = useState(false);
+  const [employeeData, setEmployeeData] = useState(null);
+  const [employeeDataError, setEmployeeDataError] = useState("");
+  const [loadingEmployees, setLoadingEmployees] = useState(false);
 
   useEffect(() => {
     api
@@ -21,13 +21,13 @@ export default function App() {
 
   useEffect(() => {
     if (!user) return;
-    setLoadingFields(true);
-    setFieldsError("");
+    setLoadingEmployees(true);
+    setEmployeeDataError("");
     api
-      .getFields()
-      .then((res) => setFields(res.fields))
-      .catch((err) => setFieldsError(err.message || "No se pudieron cargar los campos."))
-      .finally(() => setLoadingFields(false));
+      .getEmployees()
+      .then((res) => setEmployeeData(res))
+      .catch((err) => setEmployeeDataError(err.message || "No se pudo cargar el listado de empleados."))
+      .finally(() => setLoadingEmployees(false));
   }, [user]);
 
   async function handleLogin(username, password) {
@@ -38,7 +38,7 @@ export default function App() {
   async function handleLogout() {
     await api.logout();
     setUser(null);
-    setFields(null);
+    setEmployeeData(null);
   }
 
   if (checkingSession) {
@@ -70,20 +70,20 @@ export default function App() {
       </header>
 
       <main className="page-content">
-        {loadingFields && (
+        {loadingEmployees && (
           <div className="center-loading">
             <Spinner dark />
             <span>Cargando datos anteriores...</span>
           </div>
         )}
 
-        {!loadingFields && fieldsError && (
+        {!loadingEmployees && employeeDataError && (
           <div className="form-card">
-            <div className="alert-banner alert-error">{fieldsError}</div>
+            <div className="alert-banner alert-error">{employeeDataError}</div>
           </div>
         )}
 
-        {!loadingFields && fields && <DynamicForm fields={fields} opsLeaderName={user.name} />}
+        {!loadingEmployees && employeeData && <EmployeeTable data={employeeData} opsLeaderName={user.name} />}
       </main>
     </div>
   );

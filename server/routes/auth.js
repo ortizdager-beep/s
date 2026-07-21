@@ -32,7 +32,7 @@ router.post("/login", (req, res) => {
     return res.status(401).json({ error: "Usuario o contraseña incorrectos." });
   }
 
-  req.session.user = { username: user.username, name: user.name };
+  req.session.user = { username: user.username, name: user.name, sheetName: user.sheetName };
   res.json({ username: user.username, name: user.name });
 });
 
@@ -47,7 +47,8 @@ router.get("/me", (req, res) => {
   if (!req.session || !req.session.user) {
     return res.status(401).json({ error: "No autenticado." });
   }
-  res.json(req.session.user);
+  const { username, name } = req.session.user;
+  res.json({ username, name });
 });
 
 module.exports = router;
