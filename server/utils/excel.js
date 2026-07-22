@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const XLSX = require("xlsx");
-const { KEY_FIELD, READONLY_COLUMNS, EDITABLE_COLUMNS, COMPUTED_COLUMN, SUM_GROUPS, SOURCE_HEADER_ORDER } = require("./columns");
+const { KEY_FIELD, READONLY_COLUMNS, EDITABLE_COLUMNS, COMPUTED_COLUMN, SUM_GROUPS, HIGHLIGHT_IF_NOT_FULL_FIELDS, SOURCE_HEADER_ORDER } = require("./columns");
 
 const DATA_XLSX_PATH = path.join(__dirname, "..", "data", "data.xlsx");
 const SUBMISSIONS_DIR = path.join(__dirname, "..", "data", "submissions");
@@ -110,6 +110,7 @@ function getEmployeesForUser(sheetName) {
     editableColumns: EDITABLE_COLUMNS,
     computedColumn: COMPUTED_COLUMN,
     sumGroups: SUM_GROUPS,
+    highlightIfNotFullFields: HIGHLIGHT_IF_NOT_FULL_FIELDS,
     employees,
   };
 }

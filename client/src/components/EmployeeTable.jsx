@@ -30,12 +30,25 @@ function getRowCheckStatus(employee, values, sumGroups) {
   return allOk ? { status: "ok", label: "OK" } : { status: "error", label: "No suma 100%" };
 }
 
+/**
+ * Para columnas numéricas que no forman parte de un grupo bloqueante
+ * (tier/región), no se exige que valgan 100%, pero se resaltan para que
+ * el ops leader las revise si difieren de 1 (100%).
+ */
+function isNotFullHighlight(column, value) {
+  if (!column.highlightIfNotFull || column.data_type !== "number") return false;
+  const trimmed = String(value ?? "").trim();
+  if (trimmed === "") return false;
+  return Number(trimmed) !== 1;
+}
+
 function Cell({ column, value, onChange, hasError }) {
   const previousPlaceholder = column.previous_value
     ? `Último valor: ${column.previous_value}`
     : "Ingresa el valor...";
 
-  const commonClass = `cell-input${hasError ? " input-error" : ""}`;
+  const notFull = isNotFullHighlight(column, value);
+  const commonClass = `cell-input${hasError ? " input-error" : ""}${notFull ? " value-not-full" : ""}`;
 
   if (column.data_type === "select") {
     return (
@@ -81,7 +94,8 @@ function Cell({ column, value, onChange, hasError }) {
 }
 
 export default function EmployeeTable({ data, opsLeaderName }) {
-  const { readonlyColumns, editableColumns, sumGroups, employees } = data;
+  const { readonlyColumns, editableColumns, sumGroups, employees, highlightIfNotFullFields = [] } = data;
+  const highlightFieldSet = useMemo(() => new Set(highlightIfNotFullFields), [highlightIfNotFullFields]);
 
   const [values, setValues] = useState(() =>
     Object.fromEntries(employees.map((e) => [e.id_employee, emptyValuesFor(editableColumns)]))
@@ -230,8 +244,10 @@ export default function EmployeeTable({ data, opsLeaderName }) {
         <h1>Plantilla operativa — HC List / Cost to Serve</h1>
         <p>
           Hola {opsLeaderName}, completa la distribución de cada empleado a tu cargo. Los campos marcados
-          con <span className="required-asterisk">*</span> son obligatorios y los grupos de porcentaje
-          deben sumar 100%.
+          con <span className="required-asterisk">*</span> son obligatorios. XL+L++L+M+Tail y
+          EMEA+AMER+APAC+Global SoV deben sumar 100% (no se puede enviar si no). El resto de columnas
+          numéricas puede ser distinto de 100% — se resaltan en <span className="highlight-legend">amarillo</span> solo
+          como aviso, no bloquean el envío.
         </p>
       </div>
 
@@ -334,7 +350,11 @@ export default function EmployeeTable({ data, opsLeaderName }) {
                     {editableColumns.map((col) => (
                       <td key={col.field_name} className="editable-cell">
                         <Cell
-                          column={{ ...col, previous_value: employee.editable[col.field_name] }}
+                          column={{
+                            ...col,
+                            previous_value: employee.editable[col.field_name],
+                            highlightIfNotFull: highlightFieldSet.has(col.field_name),
+                          }}
                           value={rowValues[col.field_name]}
                           onChange={(v) => handleChange(employee.id_employee, col.field_name, v)}
                           hasError={Boolean(rowErrors[col.field_name])}

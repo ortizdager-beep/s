@@ -51,6 +51,12 @@ data real: empleados sin asignación activa quedan marcados "OK" aunque su
 distribución esté en blanco). El envío se **bloquea** si algún grupo no
 suma 100% (excepto ese caso).
 
+**Resto de columnas numéricas (Product SoV, PM, RM, PerfM SoV, Direct SoV,
+New Business SoV):** no forman parte de ningún grupo bloqueante — pueden
+valer lo que sea. Si su valor no es 100% (1), la celda se resalta en
+amarillo y subrayada (`HIGHLIGHT_IF_NOT_FULL_FIELDS` en `columns.js`) solo
+como aviso visual para que el ops leader la revise; nunca bloquean el envío.
+
 ## Carga del admin
 
 El usuario admin ve, en vez de la tabla, una pantalla para subir el Excel

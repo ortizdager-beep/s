@@ -58,6 +58,15 @@ const SUM_GROUPS = [
   { name: "region", label: "EMEA + AMER + APAC + Global SoV", fields: ["emea_sov", "amer_sov", "apac_sov", "global_sov"] },
 ];
 
+const SUM_GROUP_FIELD_SET = new Set(SUM_GROUPS.flatMap((g) => g.fields));
+
+// Resto de columnas numéricas editables (Product SoV, PM, RM, PerfM SoV,
+// Direct SoV, New Business SoV): no bloquean el envío si no valen 100%,
+// pero se resaltan (amarillo/subrayado) para que el ops leader las revise.
+const HIGHLIGHT_IF_NOT_FULL_FIELDS = EDITABLE_COLUMNS.filter(
+  (c) => c.data_type === "number" && !SUM_GROUP_FIELD_SET.has(c.field_name)
+).map((c) => c.field_name);
+
 // Orden real de columnas en el Excel (A -> AB), usado al reescribir data.xlsx
 // para no alterar el layout original del archivo de negocio.
 const SOURCE_HEADER_ORDER = [
@@ -97,5 +106,6 @@ module.exports = {
   EDITABLE_COLUMNS,
   COMPUTED_COLUMN,
   SUM_GROUPS,
+  HIGHLIGHT_IF_NOT_FULL_FIELDS,
   SOURCE_HEADER_ORDER,
 };

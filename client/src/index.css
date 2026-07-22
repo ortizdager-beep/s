@@ -424,6 +424,13 @@ body {
   display: none;
 }
 
+.highlight-legend {
+  color: #92700a;
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-color: #ca8a04;
+}
+
 .alert-error-list {
   margin: 8px 0 0;
   padding-left: 20px;
@@ -523,6 +530,16 @@ select.cell-input {
 .cell-input.input-error {
   border-color: var(--color-error);
   background: var(--color-error-bg);
+}
+
+/* No bloquea el envío, solo resalta valores distintos de 100% para revisión */
+.cell-input.value-not-full {
+  color: #92700a;
+  background: #fefce8;
+  border-color: #facc15;
+  text-decoration: underline;
+  text-decoration-color: #ca8a04;
+  font-weight: 600;
 }
 
 .check-badge {
